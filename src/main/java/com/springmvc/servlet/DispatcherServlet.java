@@ -149,7 +149,12 @@ public class DispatcherServlet extends HttpServlet {
                 // System.out.println(Arrays.toString(declaredMethod.getParameters()));
                 for(Parameter parameter: declaredMethod.getParameters()) {
                     if(parameter.isAnnotationPresent(RequestParam.class)) {
-                        paramNameList.add(parameter.getDeclaredAnnotation(RequestParam.class).value());
+                        // 控制当前方法形参是否为必须的
+                        if(parameter.getDeclaredAnnotation(RequestParam.class).required()) {
+                            paramNameList.add(parameter.getDeclaredAnnotation(RequestParam.class).value());
+                        } else {
+                            paramNameList.add(parameter.getName());
+                        }
                     } else {
                         paramNameList.add(parameter.getName());
                     }

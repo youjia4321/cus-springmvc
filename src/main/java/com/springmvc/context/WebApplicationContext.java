@@ -39,24 +39,17 @@ public class WebApplicationContext  {
                 // com.example.service
                 try {
                     executeScanPackage(pack.trim());
-                    System.err.println("扫描的包：" + classNames);
-                    // [com.example.service.impl.UserServiceImpl, com.example.service.UserService, com.example.controller.UserController]
-
                     // 实例化对象
                     executeInstance();
-                    System.err.println("ioc容器中的对象：" + iocMap);
-                    // {userController=com.example.controller.UserController@2a50fc89, us=com.example.service.impl.UserServiceImpl@238a8a0a}
-
                     // 实例化Spring容器中bean对象
                     executeAutowired();
-
-
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
             }
+            System.out.println("扫描的包：" + classNames);
+            System.out.println("ioc容器中的对象：" + iocMap);
         }
-
     }
 
     /**

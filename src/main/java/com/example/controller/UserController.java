@@ -1,6 +1,4 @@
 package com.example.controller;
-
-import com.alibaba.fastjson.JSON;
 import com.example.pojo.User;
 import com.example.service.UserService;
 import com.springmvc.annotation.*;
@@ -17,18 +15,26 @@ public class UserController {
     UserService userService;
 
     @RequestMapping("/get")
-    public Map<String ,Object> getUser(HttpServletRequest request, @RequestParam("name") String name, String age) {
-        Map<String, Object> map = new HashMap<>();
-        System.err.println("年龄：" + age);
+    public String getUser(HttpServletRequest request, @RequestParam("name") String name) {
         User user = userService.findUser(name);
-        if(user == null) {
-            map.put("status", 404);
-            map.put("user", null);
-        } else {
-            map.put("status", 200);
-            map.put("user", JSON.toJSONString(user));
-        }
+        System.out.println(user);
+        return "user";
+    }
+
+    @ResponseBody
+    @RequestMapping("/map")
+    public Map<String, Object> getMap() {
+        Map<String, Object> map = new HashMap<>();
+        map.put("msg", "success");
+        map.put("status", 200);
+        map.put("result", "你想得美！");
         return map;
+    }
+
+    @ResponseBody
+    @RequestMapping("/string")
+    public String getString() {
+        return "200";
     }
 
 }

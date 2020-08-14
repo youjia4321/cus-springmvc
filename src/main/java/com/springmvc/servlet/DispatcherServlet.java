@@ -3,9 +3,12 @@ package com.springmvc.servlet;
 import com.springmvc.annotation.Controller;
 import com.springmvc.annotation.RequestMapping;
 import com.springmvc.annotation.RequestParam;
+import com.springmvc.annotation.ResponseBody;
 import com.springmvc.context.WebApplicationContext;
 import com.springmvc.exception.ContextException;
+import com.springmvc.handler.HandlerExecutionChain;
 import com.springmvc.handler.HandlerMapping;
+import com.springmvc.model.ModelAndView;
 
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
@@ -13,6 +16,7 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
 import java.util.ArrayList;
@@ -76,26 +80,31 @@ public class DispatcherServlet extends HttpServlet {
      * @param resp HttpServletResponse
      */
     private void executeDispatch(HttpServletRequest req, HttpServletResponse resp) {
-        HandlerMapping handler = getHandler(req);
-            try {
-                if(handler != null) {
-                    handler.handle(req, resp);
+        HandlerExecutionChain handler = getHandlerInfo(req);
+        try {
+            if(handler != null) {
+                if(!handler.handler.isResponseBody()) {
+                    ModelAndView mv = handler.handle(req);
+                    render(mv, req, resp);
                 } else {
-                    resp.getWriter().print("<h1>404 Not Found</h1>");
+                    // 加了ResponseBody注解
+                    handler.handle(req, resp);
                 }
-            } catch (Exception e) {
-                e.printStackTrace();
+            } else {
+                noHandlerFound(req, resp);
             }
+        } catch (InvocationTargetException | IllegalAccessException | ServletException | IOException e) {
+            e.printStackTrace();
+        }
     }
 
     /**
      * 获取handlerMapping
-     * @param req HttpServletRequest
+     * @param requestURI URI
      * @return HandlerMapping
      */
-    private HandlerMapping getHandler(HttpServletRequest req) {
+    private HandlerMapping getHandler(String requestURI) {
         // /get/user
-        String requestURI = req.getRequestURI();
         for (HandlerMapping handlerMapping : handlerMappings) {
             if(handlerMapping.getUri().equals(requestURI)) {
                 return handlerMapping;
@@ -105,21 +114,42 @@ public class DispatcherServlet extends HttpServlet {
     }
 
     /**
+     * 获取请求映射执行链
+     * @param req HttpServletRequest
+     * @return HandlerExecutionChain
+     */
+    private HandlerExecutionChain getHandlerInfo(HttpServletRequest req) {
+        HandlerMapping handler = getHandler(req.getRequestURI());
+        if(handler == null) {
+            return null;
+        }
+        return new HandlerExecutionChain(handler);
+    }
+
+    /**
      * 通过控制器类解析请求映射
      * @param clazz Class
      */
     private void parseHandlerFromController(Class<?> clazz, Object ctl) {
         //如果controller类包含RequestMapping注解
         String uriPrefix = "";
+
         if(clazz.isAnnotationPresent(RequestMapping.class)){
             uriPrefix = clazz.getDeclaredAnnotation(RequestMapping.class).value();
         }
         Method[] declaredMethods = clazz.getDeclaredMethods();
         for (Method declaredMethod : declaredMethods) {
+            // 判断是否由@ResponseBody注解
+            boolean isResponseBody = false;
+            if(declaredMethod.isAnnotationPresent(ResponseBody.class)) {
+                isResponseBody = true;
+            }
             if(declaredMethod.isAnnotationPresent(RequestMapping.class)) {
-                String URI = uriPrefix + declaredMethod.getAnnotation(RequestMapping.class).value();
+                RequestMapping requestMapping = declaredMethod.getAnnotation(RequestMapping.class);
+                String URI = uriPrefix + requestMapping.value();
                 // 处理请求参数
                 List<String> paramNameList = new ArrayList<>();
+                // System.out.println(Arrays.toString(declaredMethod.getParameters()));
                 for(Parameter parameter: declaredMethod.getParameters()) {
                     if(parameter.isAnnotationPresent(RequestParam.class)) {
                         paramNameList.add(parameter.getDeclaredAnnotation(RequestParam.class).value());
@@ -127,14 +157,37 @@ public class DispatcherServlet extends HttpServlet {
                         paramNameList.add(parameter.getName());
                     }
                 }
-                System.out.println(paramNameList);
-                String[] params = paramNameList.toArray(new String[paramNameList.size()]);
-                HandlerMapping handlerMapping = new HandlerMapping(URI, ctl, declaredMethod, params);
+                int size = paramNameList.size();
+                String[] params = paramNameList.toArray(new String[size]);
+                HandlerMapping handlerMapping = new HandlerMapping(URI, ctl, declaredMethod, params, isResponseBody);
                 handlerMappings.add(handlerMapping);
-
             }
-
         }
 
+    }
+
+    /***
+     * 根据modelAndView渲染页面
+     * @param mv 页面信息
+     * @param req HttpServletRequest
+     * @param resp HttpServletResponse
+     * @throws ServletException 异常
+     * @throws IOException 异常
+     */
+    private void render(ModelAndView mv, HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+        String viewName = mv.getViewName();
+        req.getRequestDispatcher("/WEB-INF/view/" + viewName + ".jsp").forward(req, resp);//同时创建index.jsp
+    }
+
+    /**
+     * 没找到请求的处理
+     * @param req HttpServletRequest
+     * @param resp HttpServletResponse
+     * @throws IOException IO异常
+     */
+    private void noHandlerFound(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        resp.setContentType("text/html;charset=utf-8");
+        resp.sendError(HttpServletResponse.SC_NOT_FOUND);
+        resp.getWriter().print("<h1>404 Not Found</h1>");
     }
 }

@@ -15,9 +15,11 @@ public class UserController {
     UserService userService;
 
     @RequestMapping("/get")
-    public String getUser(HttpServletRequest request, @RequestParam("name") String name) {
-        User user = userService.findUser(name);
-        System.out.println(user);
+    public String getUser(HttpServletRequest request, @RequestParam(value = "name", required = false) String name, String age) {
+        if(name != null) {
+            User user = userService.findUser(name);
+            System.out.println(user);
+        }
         return "user";
     }
 

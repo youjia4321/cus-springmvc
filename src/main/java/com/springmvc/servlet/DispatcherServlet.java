@@ -20,7 +20,6 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -42,7 +41,6 @@ public class DispatcherServlet extends HttpServlet {
         // 初始化请求映射 /user/query ----> Controller ----> method ----> parameters
         initHandlerMappings();
         System.out.println("请求地址和控制器方法的映射关系：" + handlerMappings);
-
     }
 
     /**
@@ -57,10 +55,10 @@ public class DispatcherServlet extends HttpServlet {
             Class<?> clazz = entry.getValue().getClass();
             Object ctl = entry.getValue();
             if(clazz.isAnnotationPresent(Controller.class)) {
+                // 处理有@Controller注解的类
                 parseHandlerFromController(clazz, ctl);
             }
         }
-
     }
 
     @Override
@@ -87,7 +85,7 @@ public class DispatcherServlet extends HttpServlet {
                     ModelAndView mv = handler.handle(req);
                     render(mv, req, resp);
                 } else {
-                    // 加了ResponseBody注解
+                    // 加了@ResponseBody注解的处理
                     handler.handle(req, resp);
                 }
             } else {
@@ -133,13 +131,12 @@ public class DispatcherServlet extends HttpServlet {
     private void parseHandlerFromController(Class<?> clazz, Object ctl) {
         //如果controller类包含RequestMapping注解
         String uriPrefix = "";
-
         if(clazz.isAnnotationPresent(RequestMapping.class)){
             uriPrefix = clazz.getDeclaredAnnotation(RequestMapping.class).value();
         }
         Method[] declaredMethods = clazz.getDeclaredMethods();
         for (Method declaredMethod : declaredMethods) {
-            // 判断是否由@ResponseBody注解
+            // 判断是否有@ResponseBody注解
             boolean isResponseBody = false;
             if(declaredMethod.isAnnotationPresent(ResponseBody.class)) {
                 isResponseBody = true;
@@ -163,7 +160,6 @@ public class DispatcherServlet extends HttpServlet {
                 handlerMappings.add(handlerMapping);
             }
         }
-
     }
 
     /***
@@ -176,7 +172,7 @@ public class DispatcherServlet extends HttpServlet {
      */
     private void render(ModelAndView mv, HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
         String viewName = mv.getViewName();
-        req.getRequestDispatcher("/WEB-INF/view/" + viewName + ".jsp").forward(req, resp);//同时创建index.jsp
+        req.getRequestDispatcher("/WEB-INF/view/" + viewName + ".jsp").forward(req, resp);
     }
 
     /**
@@ -188,6 +184,6 @@ public class DispatcherServlet extends HttpServlet {
     private void noHandlerFound(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         resp.setContentType("text/html;charset=utf-8");
         resp.sendError(HttpServletResponse.SC_NOT_FOUND);
-        resp.getWriter().print("<h1>404 Not Found</h1>");
+        // resp.getWriter().print("<h1>404 Not Found</h1>");
     }
 }

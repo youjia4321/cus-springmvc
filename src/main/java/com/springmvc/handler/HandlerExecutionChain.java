@@ -30,7 +30,7 @@ public class HandlerExecutionChain {
         return new ModelAndView((String) viewName);
     }
 
-    public <T> void handle(HttpServletRequest req, HttpServletResponse resp)
+    public void handle(HttpServletRequest req, HttpServletResponse resp)
             throws InvocationTargetException, IllegalAccessException, IOException {
         resp.setContentType("application/json;charset=utf-8");
         Method method = handler.getMethod();
@@ -40,7 +40,7 @@ public class HandlerExecutionChain {
         for(int i = 0; i < handler.getArgs().length; i++) {
             parameters[i] = req.getParameter(handler.getArgs()[i]);
         }
-        T response = (T) method.invoke(bean, parameters);
+        Object response =  method.invoke(bean, parameters);
         resp.getWriter().println(JSON.toJSONString(response.toString()));
     }
 

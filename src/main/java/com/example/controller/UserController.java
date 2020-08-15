@@ -15,10 +15,10 @@ public class UserController {
     UserService userService;
 
     @RequestMapping("/get")
-    public String getUser(HttpServletRequest request, @RequestParam(value = "name", required = false) String name, String age) {
+    public String getUser(HttpServletRequest request, @RequestParam("name") String name, String age) {
         if(name != null) {
             User user = userService.findUser(name);
-            System.out.println(user);
+            request.setAttribute("user", user);
         }
         return "user";
     }

@@ -30,7 +30,7 @@ public class DispatcherServlet extends HttpServlet {
     private List<HandlerMapping> handlerMappings = new ArrayList<>();
 
     @Override
-    public void init(ServletConfig config) throws ServletException {
+    public void init(ServletConfig config) {
         // classpath: springmvc.xml 读取初始化的参数
         String contextConfigLocation = config.getInitParameter("contextConfigLocation");
         // System.err.println(contextConfigLocation);
@@ -62,13 +62,13 @@ public class DispatcherServlet extends HttpServlet {
     }
 
     @Override
-    protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+    protected void doPost(HttpServletRequest req, HttpServletResponse resp) {
         // 进行请求的分发处理
         executeDispatch(req, resp);
     }
 
     @Override
-    protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+    protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException {
         this.doPost(req, resp);
     }
 
@@ -81,15 +81,12 @@ public class DispatcherServlet extends HttpServlet {
         HandlerExecutionChain handler = getHandlerInfo(req);
         try {
             if(handler != null) {
-                if(!handler.handler.isResponseBody()) {
-                    ModelAndView mv = handler.handle(req);
+                ModelAndView mv = handler.handle(req, resp);
+                if(mv != null) {
                     render(mv, req, resp);
-                } else {
-                    // 加了@ResponseBody注解的处理
-                    handler.handle(req, resp);
                 }
             } else {
-                noHandlerFound(req, resp);
+                noHandlerFound(resp);
             }
         } catch (InvocationTargetException | IllegalAccessException | ServletException | IOException e) {
             e.printStackTrace();
@@ -146,17 +143,22 @@ public class DispatcherServlet extends HttpServlet {
                 String URI = uriPrefix + requestMapping.value();
                 // 处理请求参数
                 List<String> paramNameList = new ArrayList<>();
-                // System.out.println(Arrays.toString(declaredMethod.getParameters()));
                 for(Parameter parameter: declaredMethod.getParameters()) {
                     if(parameter.isAnnotationPresent(RequestParam.class)) {
-                        // 控制当前方法形参是否为必须的
+                        // 控制当前方法形参是否为必须的 后期还需优化required = false的时候
                         if(parameter.getDeclaredAnnotation(RequestParam.class).required()) {
                             paramNameList.add(parameter.getDeclaredAnnotation(RequestParam.class).value());
                         } else {
                             paramNameList.add(parameter.getName());
                         }
                     } else {
-                        paramNameList.add(parameter.getName());
+                        if("HttpServletRequest".equals(parameter.getType().getSimpleName())){
+                            paramNameList.add("HttpServletRequest");
+                        } else if("HttpServletResponse".equals(parameter.getType().getSimpleName())){
+                            paramNameList.add("HttpServletResponse");
+                        } else {
+                            paramNameList.add(parameter.getName());
+                        }
                     }
                 }
                 int size = paramNameList.size();
@@ -182,11 +184,10 @@ public class DispatcherServlet extends HttpServlet {
 
     /**
      * 没找到请求的处理
-     * @param req HttpServletRequest
      * @param resp HttpServletResponse
      * @throws IOException IO异常
      */
-    private void noHandlerFound(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+    private void noHandlerFound(HttpServletResponse resp) throws IOException {
         resp.setContentType("text/html;charset=utf-8");
         resp.sendError(HttpServletResponse.SC_NOT_FOUND);
         // resp.getWriter().print("<h1>404 Not Found</h1>");

@@ -1,5 +1,6 @@
 package com.example.controller;
 import com.example.pojo.User;
+import com.example.service.TransactionalService;
 import com.example.service.UserService;
 import com.springmvc.annotation.*;
 
@@ -13,6 +14,8 @@ public class UserController {
 
     @Autowired
     UserService userService;
+    @Autowired
+    TransactionalService transactionalService;
 
     @RequestMapping("/get")
     public String getUser(HttpServletRequest request, @RequestParam("name") String name, String age) {
@@ -45,5 +48,22 @@ public class UserController {
         return userService.show(name);
     }
 
+    @ResponseBody
+    @RequestMapping("/withdraw")
+    public Map<String, Object> withdraw() {
+        Map<String, Object> map = new HashMap<>();
+        try {
+            System.out.println("开启事务");
+            transactionalService.withdraw();
+            System.out.println("提交事务");
+            map.put("status", 200);
+            map.put("msg", "转账成功");
+        } catch (Exception e) {
+            map.put("status", 500);
+            map.put("msg", "服务器异常");
+            System.out.println("事务回滚");
+        }
+        return map;
+    }
 
 }

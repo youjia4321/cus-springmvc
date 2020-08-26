@@ -39,4 +39,11 @@ public class UserController {
         return "200";
     }
 
+    @ResponseBody
+    @RequestMapping("/aop")
+    public String aopTest(@RequestParam("name") String name) {
+        return userService.show(name);
+    }
+
+
 }

@@ -1,18 +1,15 @@
 package com.springmvc.context;
 
-import com.springmvc.annotation.Autowired;
-import com.springmvc.annotation.Controller;
-import com.springmvc.annotation.Service;
+import com.springmvc.annotation.*;
 import com.springmvc.exception.ContextException;
+import com.springmvc.proxy.JdkProxy;
 import com.springmvc.xml.XmlParser;
 
 import java.io.File;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.net.URL;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class WebApplicationContext  {
@@ -38,6 +35,7 @@ public class WebApplicationContext  {
                 // com.example.controller
                 // com.example.service
                 try {
+                    // 扫描包
                     executeScanPackage(pack.trim());
                     // 实例化对象
                     executeInstance();
@@ -106,6 +104,33 @@ public class WebApplicationContext  {
                         // 在Service(value="us") beanName = us
                         iocMap.put(beanName, clazz.newInstance());
                     }
+                } else if(clazz.isAnnotationPresent(Aspect.class)) {
+                    Method[] aopMethods = clazz.getDeclaredMethods();
+                    for (Method method : aopMethods) {
+                        if(method.isAnnotationPresent(Around.class)) {
+                            Around around = method.getAnnotation(Around.class);
+                            String value = around.value();
+
+                            //被代理对象的方法的名字
+                            String methodName = value.substring(value.lastIndexOf(".")+1);
+                            String obj = value.substring(0, value.lastIndexOf("."));
+
+                            // 被代理对象
+                            Class<?> aClass = Class.forName(obj);
+                            String superInterface = aClass.getGenericInterfaces()[0].getTypeName();
+                            String name = superInterface.substring(superInterface.lastIndexOf(".") + 1);
+                            String beanName = name.substring(0, 1).toLowerCase() + name.substring(1);
+
+                            // 封装JdkProxy对象 返回被代理的对象的实例
+                            JdkProxy proxy = new JdkProxy(aClass, clazz, methodName, method);
+                            Object instance = proxy.getInstance();
+
+                            // 替换原来的iocMap中的对象
+                            iocMap.put(beanName, instance);
+
+                        }
+                    }
+
                 }
             } catch (Exception e) {
                 e.printStackTrace();

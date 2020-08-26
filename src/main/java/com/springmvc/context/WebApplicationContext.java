@@ -2,6 +2,7 @@ package com.springmvc.context;
 
 import com.springmvc.annotation.*;
 import com.springmvc.exception.ContextException;
+import com.springmvc.proxy.CglibProxy;
 import com.springmvc.proxy.JdkProxy;
 import com.springmvc.xml.XmlParser;
 
@@ -18,6 +19,8 @@ public class WebApplicationContext  {
     private List<String> classNames = new ArrayList<>();
     // Spring的IOC容器
     public Map<String, Object> iocMap = new ConcurrentHashMap<>();
+
+    public Map<String, Object> cglibProxyMap = new ConcurrentHashMap<>();
 
     public WebApplicationContext(String contextConfigLocation) {
         this.contextConfigLocation = contextConfigLocation;
@@ -45,6 +48,17 @@ public class WebApplicationContext  {
                     e.printStackTrace();
                 }
             }
+
+            // 依赖注入完之后 使用代理类替换原来的被代理对象
+            for (String beanName : cglibProxyMap.keySet()) {
+                if(iocMap.containsKey(beanName)) {
+                    // 依赖注入之后的对象
+                    Object obj = iocMap.get(beanName);
+                    Object bean = CglibProxy.getInstance(obj.getClass());
+                    iocMap.put(beanName, bean);
+                }
+            }
+
             System.out.println("扫描的包：" + classNames);
             System.out.println("ioc容器中的对象：" + iocMap);
         }
@@ -89,6 +103,9 @@ public class WebApplicationContext  {
                     // System.out.println(clazz.getSimpleName());
                     String beanName = clazz.getSimpleName().substring(0, 1).toLowerCase() + clazz.getSimpleName().substring(1);
                     iocMap.put(beanName, clazz.newInstance());
+                } if(clazz.isAnnotationPresent(Component.class)) {
+                    String beanName = clazz.getSimpleName().substring(0, 1).toLowerCase() + clazz.getSimpleName().substring(1);
+                    iocMap.put(beanName, clazz.newInstance());
                 } else if(clazz.isAnnotationPresent(Service.class)) {
                     // com.springmvc.controller.UserServiceImpl
                     Service serviceAnnotation = clazz.getAnnotation(Service.class);
@@ -104,6 +121,12 @@ public class WebApplicationContext  {
                         // 在Service(value="us") beanName = us
                         iocMap.put(beanName, clazz.newInstance());
                     }
+                    // 如果有Transactional注解 用cglib生成动态代理类(这里没有去控制在Service中加上value值的情况)
+                    if(clazz.isAnnotationPresent(Transactional.class)) {
+                        Object obj = CglibProxy.getInstance(clazz);
+                        cglibProxyMap.put(beanName, obj);
+                    }
+
                 } else if(clazz.isAnnotationPresent(Aspect.class)) {
                     Method[] aopMethods = clazz.getDeclaredMethods();
                     for (Method method : aopMethods) {

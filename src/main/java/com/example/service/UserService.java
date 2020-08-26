@@ -6,4 +6,6 @@ public interface UserService {
 
     User findUser(String name);
 
+    String show(String name);
+
 }

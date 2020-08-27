@@ -1,5 +1,6 @@
 package com.springmvc.proxy;
 
+import com.springmvc.exception.ContextException;
 import com.springmvc.utils.TransactionManager;
 import net.sf.cglib.proxy.Enhancer;
 import net.sf.cglib.proxy.MethodInterceptor;
@@ -24,7 +25,7 @@ public class CglibProxy {
                     return result;
                 } catch (Exception e) {
                     root.rollback();
-                    throw new RuntimeException();
+                    throw new ContextException("服务器异常");
                 }
             }
         };

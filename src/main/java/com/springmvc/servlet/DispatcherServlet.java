@@ -25,7 +25,7 @@ import java.util.Map;
 
 public class DispatcherServlet extends HttpServlet {
 
-    private WebApplicationContext webApplicationContext;
+    private WebApplicationContext webApplicationContext = null;
     // 存储URI和对象的方法映射关系
     private List<HandlerMapping> handlerMappings = new ArrayList<>();
 
@@ -35,7 +35,8 @@ public class DispatcherServlet extends HttpServlet {
         String contextConfigLocation = config.getInitParameter("contextConfigLocation");
         // System.err.println(contextConfigLocation);
         // 创建spring容器
-        webApplicationContext = new WebApplicationContext(contextConfigLocation);
+        webApplicationContext = WebApplicationContext.getInstance();
+        webApplicationContext.setContextConfigLocation(contextConfigLocation);
         // 初始化spring容器
         webApplicationContext.refresh();
         // 初始化请求映射 /user/query ----> Controller ----> method ----> parameters

@@ -5,6 +5,7 @@ import com.springmvc.exception.ContextException;
 import com.springmvc.proxy.CglibProxy;
 import com.springmvc.proxy.JdkProxy;
 import com.springmvc.xml.XmlParser;
+import lombok.Data;
 
 import java.io.File;
 import java.lang.reflect.Field;
@@ -13,6 +14,7 @@ import java.net.URL;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
+@Data
 public class WebApplicationContext  {
 
     private String contextConfigLocation;
@@ -22,8 +24,15 @@ public class WebApplicationContext  {
 
     public Map<String, Object> cglibProxyMap = new ConcurrentHashMap<>();
 
-    public WebApplicationContext(String contextConfigLocation) {
-        this.contextConfigLocation = contextConfigLocation;
+    private WebApplicationContext() {}
+
+    private static final WebApplicationContext webApplicationContext = new WebApplicationContext();
+
+    public synchronized static WebApplicationContext getInstance() {
+        if(webApplicationContext==null) {
+            return new WebApplicationContext();
+        }
+        return webApplicationContext;
     }
 
     /**
@@ -40,23 +49,29 @@ public class WebApplicationContext  {
                 try {
                     // 扫描包
                     executeScanPackage(pack.trim());
-                    // 实例化对象
-                    executeInstance();
-                    // 实例化Spring容器中bean对象
-                    executeAutowired();
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
             }
+            // 实例化对象
+            executeInstance();
 
-            // 依赖注入完之后 使用代理类替换原来的被代理对象
-            for (String beanName : cglibProxyMap.keySet()) {
-                if(iocMap.containsKey(beanName)) {
-                    // 依赖注入之后的对象
-                    Object obj = iocMap.get(beanName);
-                    Object bean = CglibProxy.getInstance(obj.getClass());
-                    iocMap.put(beanName, bean);
+            try {
+                // (优化)被代理对象 被代理之前先注入
+                // 实例化容器中对象完之后 使用代理类替换原来的被代理对象
+                for (String beanName : cglibProxyMap.keySet()) {
+                    if(iocMap.containsKey(beanName)) {
+                        // 依赖注入之后的对象
+                        Object obj = iocMap.get(beanName);
+                        Object bean = CglibProxy.getInstance(obj.getClass());
+                        iocMap.put(beanName, bean);
+                    }
                 }
+
+                // 实现自动装配(注入)
+                executeAutowired();
+            } catch (IllegalAccessException e) {
+                e.printStackTrace();
             }
 
             System.out.println("扫描的包：" + classNames);
